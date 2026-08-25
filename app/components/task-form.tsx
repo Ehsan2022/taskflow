@@ -55,6 +55,11 @@ export function TaskForm() {
       <div className="mt-5">
         <SubmitButton label="Add Task" />
       </div>
+      {state.errors.form && (
+        <p className="text-sm text-red-600">
+          {state.errors.form[0]}
+        </p>
+      )}
     </form>
   );
 }

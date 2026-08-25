@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { auth } from "@/auth";
 
 const taskSchema = z.object({
   title: z
@@ -17,6 +18,7 @@ export type FormState = {
   success: boolean;
   errors: {
     title?: string[];
+    form?: string[];
   };
 };
 
@@ -24,15 +26,23 @@ export async function createTask(
   previousState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  // Build an object from the submitted form
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      success: false,
+      errors: {
+        form: ["You must be logged in to create a task."],
+      },
+    };
+  }
+
   const rawData = {
     title: formData.get("title"),
   };
 
-  // Validate using Zod
   const validatedFields = taskSchema.safeParse(rawData);
 
-  // Validation failed
   if (!validatedFields.success) {
     return {
       success: false,
@@ -40,14 +50,18 @@ export async function createTask(
     };
   }
 
-  // Validation passed
   await prisma.task.create({
     data: {
       title: validatedFields.data.title,
+
+      user: {
+        connect: {
+          id: Number(session.user.id),
+        },
+      },
     },
   });
 
-  // Refresh the tasks page
   revalidatePath("/tasks");
 
   return {
