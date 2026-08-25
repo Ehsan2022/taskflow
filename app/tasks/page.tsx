@@ -31,7 +31,7 @@ export default async function TasksPage({
           Task Management
         </div>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Your Tasks
+          Hi there, Your Tasks
         </h1>
         <p className="mt-2 text-slate-600 dark:text-slate-400">
           Create, search, and manage your tasks all in one place.
