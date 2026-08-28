@@ -2,6 +2,7 @@ import "./globals.css";
 import Link from "next/link";
 import { Geist } from "next/font/google";
 import { LogoutButton } from "./components/logout-button";
+import { auth } from "@/auth";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -14,11 +15,12 @@ export const metadata = {
     "A modern, lightweight task management application to organize and track your work.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="en">
       <body className={geist.variable}>
@@ -43,25 +45,28 @@ export default function RootLayout({
               >
                 Home
               </Link>
+
+              {session?.user && (
               <Link
                 href="/tasks"
                 className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
               >
                 Tasks
               </Link>
+              )}
               <Link
-                href="/dashboard"
+                href="/about"
                 className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
               >
-                Dashboard
+                About
               </Link>
               <Link
-                href="/tasks"
+                href="/login"
                 className="ml-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-600/30"
               >
                 Get Started
               </Link>
-              <LogoutButton/>
+              {session?.user && <LogoutButton />}            
             </div>
           </nav>
         </header>
