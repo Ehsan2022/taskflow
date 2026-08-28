@@ -1,6 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import { Geist } from "next/font/google";
+import { LogoutButton } from "./components/logout-button";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -60,6 +61,7 @@ export default function RootLayout({
               >
                 Get Started
               </Link>
+              <LogoutButton/>
             </div>
           </nav>
         </header>
