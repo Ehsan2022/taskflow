@@ -2,6 +2,8 @@
 import { TaskForm } from "@/app/components/task-form";
 import { TaskList } from "@/app/components/task-list";
 import { TaskSearch } from "@/app/components/task-search";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 
 type TasksPageProps = {
   searchParams: Promise<{
@@ -22,6 +24,15 @@ export default async function TasksPage({
     Number(params.page) || 1
   );
 
+  const session = await auth();
+  const userName = session?.user?.name ?? "There";
+  const activeTasksCount = session?.user?.id ? await prisma.task.count({
+    where: {
+      userId: Number(session.user.id),
+      completed: false,
+    },
+  }) : 0;
+
   return (
     <div className="relative mx-auto max-w-3xl px-6 py-12">
       {/* Page header */}
@@ -31,7 +42,7 @@ export default async function TasksPage({
           Task Management
         </div>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Hi there, Your Tasks
+          Hi {userName}, You have {activeTasksCount} active tasks
         </h1>
         <p className="mt-2 text-slate-600 dark:text-slate-400">
           Create, search, and manage your tasks all in one place.

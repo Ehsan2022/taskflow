@@ -1,4 +1,5 @@
 // app/actions/task-actions.ts
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -6,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/auth";
 
+// Validate task input
 const taskSchema = z.object({
   title: z
     .string()
@@ -14,6 +16,7 @@ const taskSchema = z.object({
     .max(100, "Title cannot exceed 100 characters."),
 });
 
+// Shared form state for create/update actions
 export type FormState = {
   success: boolean;
   errors: {
@@ -22,12 +25,14 @@ export type FormState = {
   };
 };
 
+// Create a new task for the logged-in user
 export async function createTask(
   previousState: FormState,
   formData: FormData
 ): Promise<FormState> {
   const session = await auth();
 
+  // Make sure the user is authenticated
   if (!session?.user?.id) {
     return {
       success: false,
@@ -41,6 +46,7 @@ export async function createTask(
     title: formData.get("title"),
   };
 
+  // Validate form data
   const validatedFields = taskSchema.safeParse(rawData);
 
   if (!validatedFields.success) {
@@ -50,6 +56,7 @@ export async function createTask(
     };
   }
 
+  // Create task and connect it to the current user
   await prisma.task.create({
     data: {
       title: validatedFields.data.title,
@@ -62,6 +69,7 @@ export async function createTask(
     },
   });
 
+  // Refresh the task list
   revalidatePath("/tasks");
 
   return {
@@ -70,37 +78,52 @@ export async function createTask(
   };
 }
 
+// State returned by the delete action
 export type DeleteState = {
   success: boolean;
   error?: string;
 };
 
+// Delete a task owned by the logged-in user
 export async function deleteTask(
   previousState: DeleteState,
   formData: FormData
 ): Promise<DeleteState> {
   const id = Number(formData.get("id"));
 
-  if (Number.isNaN(id)) {
+  // Make sure the user is authenticated
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized.");
+  }
+
+  const userId = Number(session.user.id);
+
+  // Validate task ID
+  if (Number.isNaN(id) || !id) {
     return {
       success: false,
       error: "Invalid task ID.",
     };
   }
 
-  if (!id) {
-    return {
-      success: false,
-      error: "Task ID is required.",
-    };
-  }
-
   try {
-    await prisma.task.delete({
+    // Delete only if the task belongs to the current user
+    const result = await prisma.task.deleteMany({
       where: {
         id,
+        userId,
       },
     });
+
+    // No task was found for this user
+    if (result.count === 0) {
+      return {
+        success: false,
+        error: "Task not found.",
+      };
+    }
 
     revalidatePath("/tasks");
 
@@ -115,38 +138,81 @@ export async function deleteTask(
   }
 }
 
+// Toggle the completion status of a user's task
 export async function toggleTask(formData: FormData) {
   const id = Number(formData.get("id"));
 
-  const completed = formData.get("completed") === "true";
-
-  if (Number.isNaN(id)) {
+  // Validate task ID
+  if (Number.isNaN(id) || !id) {
     throw new Error("Invalid task ID.");
   }
 
-  await prisma.task.update({
+  // Make sure the user is authenticated
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized.");
+  }
+
+  const userId = Number(session.user.id);
+
+  // Find the task only if it belongs to the current user
+  const task = await prisma.task.findFirst({
     where: {
       id,
+      userId,
+    },
+  });
+
+  if (!task) {
+    throw new Error("Task not found.");
+  }
+
+  // Toggle the actual database value
+  await prisma.task.updateMany({
+    where: {
+      id,
+      userId,
     },
     data: {
-      completed: !completed,
+      completed: !task.completed,
     },
   });
 
   revalidatePath("/tasks");
 }
 
+// Update the title of a user's task
 export async function updateTask(
   previousState: FormState,
   formData: FormData
 ): Promise<FormState> {
   const id = Number(formData.get("id"));
 
+  // Validate task ID
+  if (Number.isNaN(id) || !id) {
+    return {
+      success: false,
+      errors: {
+        form: ["Invalid task ID."],
+      },
+    };
+  }
+
+  // Make sure the user is authenticated
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized.");
+  }
+
+  const userId = Number(session.user.id);
+
   const rawData = {
     title: formData.get("title"),
   };
 
-  // Validate title
+  // Validate form data
   const validatedFields = taskSchema.safeParse(rawData);
 
   if (!validatedFields.success) {
@@ -156,15 +222,26 @@ export async function updateTask(
     };
   }
 
-  // Update database
-  await prisma.task.update({
+  // Update only if the task belongs to the current user
+  const result = await prisma.task.updateMany({
     where: {
       id,
+      userId,
     },
     data: {
       title: validatedFields.data.title,
     },
   });
+
+  // Make sure a task was actually updated
+  if (result.count === 0) {
+    return {
+      success: false,
+      errors: {
+        form: ["Task not found."],
+      },
+    };
+  }
 
   revalidatePath("/tasks");
 

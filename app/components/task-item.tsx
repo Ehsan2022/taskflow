@@ -105,11 +105,6 @@ export function TaskItem({
           <div className="flex shrink-0 items-center gap-1.5">
             <form action={toggleTask}>
               <input type="hidden" name="id" value={task.id} />
-              <input
-                type="hidden"
-                name="completed"
-                value={String(task.completed)}
-              />
               <button
                 type="submit"
                 title={task.completed ? "Mark as incomplete" : "Mark as complete"}

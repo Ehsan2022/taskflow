@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { TaskItem } from "./task-item";
+import { auth } from "@/auth";
 
 type TaskListProps = {
   search: string;
@@ -12,14 +13,24 @@ export async function TaskList({
   search,
   page,
 }: TaskListProps) {
-  const where = search
-    ? {
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return null;
+  }
+
+  const userId = Number(session.user.id);
+  const where = {
+    userId,
+    ...(search
+      ? {
         title: {
           contains: search,
           mode: "insensitive" as const,
         },
       }
-    : undefined;
+      : {}),
+  };
 
   const tasks = await prisma.task.findMany({
     where,
